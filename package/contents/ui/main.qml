@@ -144,13 +144,25 @@ PlasmoidItem {
         // Both plugin scan commands use grep -H so each line is prefixed
         // with its source file path. handlePluginScan() splits the output
         // by file so we can attribute every captured mapping to a plugin.
+        //
+        // Scan scope per plugin:
+        //   plugin/*.vim          — global mappings active everywhere
+        //   after/plugin/*.vim    — same, loaded after the main plugin/
+        //   ftplugin/*.vim        — filetype-scoped (vimwiki etc.) — buffer-local
+        //                           but still shortcuts users want to discover
+        //   after/ftplugin/*.vim  — same, loaded after the main ftplugin/
         function runPluginVim(toolId, dirs) {
             var dirArgs = dirs.map(function (d) {
                 return "'" + d.replace(/'/g, "'\\''") + "'"
             }).join(" ")
-            var cmd = "find " + dirArgs + " -type f \\( -path '*/plugin/*.vim' -o -path '*/after/plugin/*.vim' \\) 2>/dev/null"
+            var cmd = "find " + dirArgs + " -type f \\("
+                    + " -path '*/plugin/*.vim'"
+                    + " -o -path '*/after/plugin/*.vim'"
+                    + " -o -path '*/ftplugin/*.vim'"
+                    + " -o -path '*/after/ftplugin/*.vim'"
+                    + " \\) 2>/dev/null"
                     + " | xargs -r grep -HE '^[[:space:]]*[nvxiscot]?(nore)?map\\b' 2>/dev/null"
-                    + " | head -n 5000"
+                    + " | head -n 10000"
                     + " # tool=" + toolId + " kind=plugins-vim"
             connectSource(cmd)
         }
@@ -159,9 +171,13 @@ PlasmoidItem {
             var dirArgs = dirs.map(function (d) {
                 return "'" + d.replace(/'/g, "'\\''") + "'"
             }).join(" ")
-            var cmd = "find " + dirArgs + " -type f -name '*.lua' \\( -path '*/plugin/*' -o -path '*/lua/*' \\) 2>/dev/null"
+            var cmd = "find " + dirArgs + " -type f -name '*.lua' \\("
+                    + " -path '*/plugin/*'"
+                    + " -o -path '*/ftplugin/*'"
+                    + " -o -path '*/lua/*'"
+                    + " \\) 2>/dev/null"
                     + " | xargs -r grep -HE 'vim\\.(keymap\\.set|api\\.nvim_set_keymap)' 2>/dev/null"
-                    + " | head -n 5000"
+                    + " | head -n 10000"
                     + " # tool=" + toolId + " kind=plugins-lua"
             connectSource(cmd)
         }

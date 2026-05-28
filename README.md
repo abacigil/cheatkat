@@ -27,11 +27,17 @@ Adding a new tool means dropping in another module under `package/contents/code/
 Three layers of vim keybindings are surfaced, each with its own source tag:
 
 1. **`<Plug>` mappings in your vimrc** (always on). Lines like `nmap gd <Plug>(coc-definition)` are kept — the LHS is what you actually press, and the action label is derived from the `<Plug>` name. These land in the `plugins` category with the `user` tag.
-2. **Plugin-defined defaults from `plugin/*.vim`** (toggle: *Scan plugins* in settings). Walks `~/.vim/plugged/`, `~/.vim/pack/*/start/`, `~/.local/share/nvim/site/pack/*/start/`, `~/.local/share/nvim/lazy/`. Pre-greps to `:map`-style lines before parsing. Tagged `plug` (orange).
-3. **Lua keymaps** (same toggle). Best-effort regex over `*.lua` for `vim.keymap.set(...)` and `vim.api.nvim_set_keymap(...)`. Picks up `desc = "..."` when present. Tagged `plug`.
+2. **Plugin-defined defaults from `*.vim`** (toggle: *Scan plugins* in settings). Walks `~/.vim/plugged/`, `~/.vim/pack/*/start/`, `~/.local/share/nvim/site/pack/*/start/`, `~/.local/share/nvim/lazy/`. Scans both global and filetype-scoped mapping files:
+   - `plugin/*.vim`, `after/plugin/*.vim` — always-active mappings
+   - `ftplugin/*.vim`, `after/ftplugin/*.vim` — filetype-scoped (e.g. vimwiki's wiki-buffer bindings)
+
+   Pre-greps to `:map`-style lines before parsing. Tagged with the plugin name (orange).
+3. **Lua keymaps** (same toggle). Best-effort regex over `*.lua` in `plugin/`, `ftplugin/`, and `lua/` for `vim.keymap.set(...)` and `vim.api.nvim_set_keymap(...)`. Picks up `desc = "..."` when present. Tagged with the plugin name (orange).
 
 User and default keys always win — a plugin entry with a key you've already bound is dropped, so the list stays unambiguous.
 
+> **Helper-function gap:** plugins that define their user-facing defaults through a custom vimscript helper (e.g. vimwiki's `call vimwiki#u#map_key('n', s:map_prefix . 'w', '<Plug>VimwikiIndex', 2)`) won't be caught — the LHS is computed at runtime from a script-local variable, which a regex parser can't evaluate. The `<Plug>` definitions themselves are still captured under the plugin's name; you'll just see the abstract endpoints, not the resolved `<leader>ww` form. This is documented as a known limitation; covering it requires a partial vimscript interpreter.
+>
 > **Lua limitations:** lazy.nvim's `keys = { ... }` spec, which-key's `wk.register(...)`, and keymap calls split across multiple lines are **not** parsed. These need a real Lua tokenizer; the regex approach catches the common single-line patterns and skips the rest cleanly. Lua heredocs inside `init.vim` are also skipped.
 
 ## Features
