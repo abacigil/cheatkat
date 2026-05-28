@@ -119,6 +119,13 @@ describe("vim <Plug> mapping support", ({ eq, truthy }) => {
     eq(byKey["d s"].action,         "Dsurround",      "bare <Plug>Name (no parens) handled")
     eq(byKey["<leader> f"].action,  "fugitive:",      "trailing colon preserved")
 
+    // pluginName attribution from the Plug action's prefix
+    eq(byKey["g d"].pluginName,           "coc",      "coc-definition -> pluginName=coc")
+    eq(byKey["<leader> r n"].pluginName,  "coc",      "hyphen prefix wins")
+    eq(byKey["<leader> f"].pluginName,    "fugitive", "colon prefix wins when no hyphen")
+    eq(byKey["d s"].pluginName ?? null,   null,
+       "no decomposable prefix -> null (vim-surround style)")
+
     const sidParsed = Vim.parseConfig("nmap <leader>s <SID>foo")
     eq(sidParsed.shortcuts.length, 0, "<SID> RHS still skipped")
 })

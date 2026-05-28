@@ -100,6 +100,7 @@ Item {
                         keys: modelData.keys
                         action: modelData.action
                         source: modelData.source
+                        pluginName: modelData.pluginName || ""
                     }
                 }
             }

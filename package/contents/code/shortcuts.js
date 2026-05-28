@@ -45,8 +45,10 @@ function mergeWithDefaults(defaults, parsedUser, normalizeFn, categorize, humani
             keys: s.keys,
             action: humanize(s.action),
             aliases: s.aliases || null,
-            // Parsers (vimrc / plugin scanner / Lua) can also pre-assign source.
-            source: s.source || "user"
+            // Parsers (vimrc / plugin scanner / Lua) can pre-assign source
+            // and plugin attribution.
+            source: s.source || "user",
+            pluginName: s.pluginName || null
         })
     }
 

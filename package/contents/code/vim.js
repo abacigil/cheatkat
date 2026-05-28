@@ -376,14 +376,18 @@ function parseConfig(text) {
 
         // `<Plug>(coc-definition)` style mappings: the RHS is an abstract
         // plugin endpoint, but the LHS *is* a real keypress the user types.
-        // Surface a humanized plug-name as the action and route to "plugins".
+        // Surface the plug-name as the action, route to the "plugins"
+        // category, and (when the plug name has a recognizable prefix)
+        // attach a `pluginName` so the UI can show which plugin owns it.
         var plugMatch = rhs.match(/^<Plug>\(?([^)\s]+?)\)?\s*$/i)
         if (plugMatch) {
+            var plugAction = plugMatch[1].trim()
             shortcuts.push({
                 keys: normKeys,
-                action: plugMatch[1].trim(),
+                action: plugAction,
                 actionToken: "plug",
-                category: "plugins"
+                category: "plugins",
+                pluginName: pluginNameFromPlug(plugAction)
             })
             return
         }
@@ -476,6 +480,24 @@ function stripQuotes(s) {
         return s.substring(1, s.length - 1)
     }
     return s
+}
+
+// Pull a plugin name out of a `<Plug>` action label when there's a clear
+// prefix delimiter. Returns null when the plug name isn't decomposable
+// (e.g. "Dsurround" — vim-surround uses single-letter action prefixes that
+// we can't reliably split without per-plugin knowledge).
+//
+//   "coc-definition"  -> "coc"
+//   "fzf-files"       -> "fzf"
+//   "fugitive:"       -> "fugitive"
+//   "Dsurround"       -> null
+function pluginNameFromPlug(plugAction) {
+    if (!plugAction) return null
+    var hyphen = plugAction.indexOf("-")
+    if (hyphen > 0) return plugAction.substring(0, hyphen).toLowerCase()
+    var colon = plugAction.indexOf(":")
+    if (colon > 0) return plugAction.substring(0, colon).toLowerCase()
+    return null
 }
 
 // Strip `<silent>`, `<buffer>`, `<expr>`, `<unique>`, `<nowait>`, `<special>`

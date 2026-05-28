@@ -121,12 +121,7 @@ PlasmoidItem {
             }
 
             if (kind === "plugins-vim" || kind === "plugins-lua") {
-                var tool = root.findTool(toolId)
-                if (!tool) return
-                var parsed = (kind === "plugins-vim")
-                    ? tool.module.parseConfig(stdout)
-                    : tool.module.parseLuaConfig(stdout)
-                root.appendPluginShortcuts(toolId, parsed)
+                root.handlePluginScan(toolId, kind, stdout)
                 return
             }
         }
@@ -136,15 +131,15 @@ PlasmoidItem {
             connectSource("cat -- " + safe + " # tool=" + toolId + " kind=config")
         }
 
+        // Both plugin scan commands use grep -H so each line is prefixed
+        // with its source file path. handlePluginScan() splits the output
+        // by file so we can attribute every captured mapping to a plugin.
         function runPluginVim(toolId, dirs) {
-            // Find map lines in plugin/*.vim and after/plugin/*.vim across all
-            // candidate plugin roots. Pre-grep before parsing so we don't ship
-            // megabytes of vimscript to a JS regex parser.
             var dirArgs = dirs.map(function (d) {
                 return "'" + d.replace(/'/g, "'\\''") + "'"
             }).join(" ")
             var cmd = "find " + dirArgs + " -type f \\( -path '*/plugin/*.vim' -o -path '*/after/plugin/*.vim' \\) 2>/dev/null"
-                    + " | xargs -r grep -hE '^[[:space:]]*[nvxiscot]?(nore)?map\\b' 2>/dev/null"
+                    + " | xargs -r grep -HE '^[[:space:]]*[nvxiscot]?(nore)?map\\b' 2>/dev/null"
                     + " | head -n 5000"
                     + " # tool=" + toolId + " kind=plugins-vim"
             connectSource(cmd)
@@ -155,7 +150,7 @@ PlasmoidItem {
                 return "'" + d.replace(/'/g, "'\\''") + "'"
             }).join(" ")
             var cmd = "find " + dirArgs + " -type f -name '*.lua' \\( -path '*/plugin/*' -o -path '*/lua/*' \\) 2>/dev/null"
-                    + " | xargs -r grep -hE 'vim\\.(keymap\\.set|api\\.nvim_set_keymap)' 2>/dev/null"
+                    + " | xargs -r grep -HE 'vim\\.(keymap\\.set|api\\.nvim_set_keymap)' 2>/dev/null"
                     + " | head -n 5000"
                     + " # tool=" + toolId + " kind=plugins-lua"
             connectSource(cmd)
@@ -217,6 +212,64 @@ PlasmoidItem {
         setToolGroups(toolId, grouped)
     }
 
+    // Plugin scan output: each line is "path:content" (grep -H). Group by
+    // path, parse each plugin's lines independently, and tag every captured
+    // mapping with the plugin name derived from the file path.
+    function handlePluginScan(toolId, kind, stdout) {
+        var tool = findTool(toolId)
+        if (!tool) return
+
+        var byFile = {}
+        var lines = stdout.split("\n")
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i]
+            if (!line) continue
+            var colon = line.indexOf(":")
+            if (colon <= 0) continue
+            var path    = line.substring(0, colon)
+            var content = line.substring(colon + 1)
+            if (!byFile[path]) byFile[path] = []
+            byFile[path].push(content)
+        }
+
+        for (var path in byFile) {
+            var text = byFile[path].join("\n")
+            var pluginName = pluginNameFromPath(path)
+            var parsed = (kind === "plugins-vim")
+                ? tool.module.parseConfig(text)
+                : tool.module.parseLuaConfig(text)
+            for (var s = 0; s < parsed.shortcuts.length; s++) {
+                if (!parsed.shortcuts[s].pluginName) {
+                    parsed.shortcuts[s].pluginName = pluginName
+                }
+            }
+            appendPluginShortcuts(toolId, parsed)
+        }
+    }
+
+    // Plugin name from an install path. Handles the common manager layouts:
+    //   ~/.vim/plugged/<name>/...                  (vim-plug)
+    //   ~/.vim/pack/<group>/start/<name>/...       (vim 8+ native)
+    //   ~/.local/share/nvim/site/pack/.../start/<name>/...
+    //   ~/.local/share/nvim/lazy/<name>/...        (lazy.nvim)
+    function pluginNameFromPath(path) {
+        var markers = ["/plugged/", "/lazy/"]
+        for (var m = 0; m < markers.length; m++) {
+            var idx = path.indexOf(markers[m])
+            if (idx >= 0) {
+                var rest = path.substring(idx + markers[m].length)
+                var slash = rest.indexOf("/")
+                return slash >= 0 ? rest.substring(0, slash) : rest
+            }
+        }
+        var packMatch = path.match(/\/pack\/[^\/]+\/(?:start|opt)\/([^\/]+)\//)
+        if (packMatch) return packMatch[1]
+        // Generic fallback: <plugin>/plugin/... or <plugin>/lua/... or .../after/
+        var generic = path.match(/\/([^\/]+)\/(plugin|after|lua)\//)
+        if (generic) return generic[1]
+        return null
+    }
+
     // Append plugin-scanned shortcuts on top of the tool's existing groups.
     // User and default keys win — plugin entries with a duplicate key are
     // dropped so the tab doesn't show conflicting actions for the same key.
@@ -237,7 +290,8 @@ PlasmoidItem {
                     keys: item.keys,
                     action: item.action,
                     source: item.source,
-                    aliases: item.aliases
+                    aliases: item.aliases,
+                    pluginName: item.pluginName
                 })
             }
         }
@@ -250,7 +304,8 @@ PlasmoidItem {
                 category: s.category || tool.module.categorize(s.actionToken || s.action),
                 keys: s.keys,
                 action: tool.module.humanize(s.action),
-                source: "plugin"
+                source: "plugin",
+                pluginName: s.pluginName || null
             })
         }
 

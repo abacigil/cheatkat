@@ -18,6 +18,7 @@ Item {
     property string keys: ""
     property string action: ""
     property string source: "default"
+    property string pluginName: ""
 
     function isModifier(token) {
         var t = (token || "").toLowerCase()
@@ -122,7 +123,10 @@ Item {
         }
 
         // Source tag — distinguishes user-defined and plugin-scanned entries
-        // from the bundled defaults. Color and label are picked by source.
+        // from the bundled defaults. Color encodes the source (green = your
+        // config, orange = plugin scan). The chip text prefers the actual
+        // plugin name when we have it (e.g. "surround", "coc"), and falls
+        // back to a generic "user" / "plug" otherwise.
         Rectangle {
             visible: row.source === "user" || row.source === "plugin"
             color: "transparent"
@@ -134,7 +138,9 @@ Item {
             Text {
                 id: sourceTag
                 anchors.centerIn: parent
-                text: row.source === "plugin" ? "plug" : "user"
+                text: row.pluginName
+                    ? row.pluginName
+                    : (row.source === "plugin" ? "plug" : "user")
                 font.family: row.fontFamily
                 font.pixelSize: row.fontSize - 2
                 color: row.source === "plugin" ? theme.peach : theme.green
