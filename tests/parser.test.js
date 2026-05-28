@@ -130,6 +130,41 @@ describe("vim <Plug> mapping support", ({ eq, truthy }) => {
     eq(sidParsed.shortcuts.length, 0, "<SID> RHS still skipped")
 })
 
+describe("vim Ex-command plugin attribution", ({ eq, truthy }) => {
+    const sample = [
+        'nnoremap <leader>f :Files<CR>',
+        'nnoremap <leader>b :Buffers<CR>',
+        'nnoremap <leader>g :Rg<CR>',
+        'nnoremap <leader>gs :Git<CR>',
+        'nnoremap <leader>gd :Gdiffsplit<CR>',
+        'nnoremap <leader>e :NERDTreeToggle<CR>',
+        'nnoremap <leader>ni :VimwikiIndex<CR>',
+        'nnoremap <leader>w :w<CR>',           // built-in :w, no attribution
+        'nnoremap <leader>x :SomeUnknownCommand<CR>'  // unknown, no attribution
+    ].join("\n")
+
+    const parsed = Vim.parseConfig(sample)
+    const byKey  = Object.fromEntries(parsed.shortcuts.map(s => [s.keys, s]))
+
+    eq(byKey["<leader> f"].pluginName, "fzf",      ":Files -> fzf")
+    eq(byKey["<leader> b"].pluginName, "fzf",      ":Buffers -> fzf")
+    eq(byKey["<leader> g"].pluginName, "fzf",      ":Rg -> fzf")
+    eq(byKey["<leader> g s"].pluginName, "fugitive", ":Git -> fugitive")
+    eq(byKey["<leader> g d"].pluginName, "fugitive", ":Gdiffsplit -> fugitive")
+    eq(byKey["<leader> e"].pluginName, "nerdtree", ":NERDTreeToggle -> nerdtree")
+    eq(byKey["<leader> n i"].pluginName, "vimwiki", ":VimwikiIndex -> vimwiki")
+
+    truthy(byKey["<leader> g"].aliases.includes("ripgrep"),
+        ":Rg picks up the 'ripgrep' alias so searching 'ripgrep' finds it")
+    truthy(byKey["<leader> e"].aliases.includes("tree"),
+        ":NERDTreeToggle aliased to 'tree'")
+
+    eq(byKey["<leader> w"].pluginName ?? null, null,
+        "built-in :w has no plugin attribution")
+    eq(byKey["<leader> x"].pluginName ?? null, null,
+        "unknown command has no plugin attribution")
+})
+
 describe("vim.parseLuaConfig", ({ eq, truthy }) => {
     const sample = [
         '-- comment',

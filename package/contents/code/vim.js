@@ -393,10 +393,18 @@ function parseConfig(text) {
         }
 
         var firstToken = rhs.split(/[\s<]/)[0]
+
+        // If the RHS calls a known plugin Ex command (`:Files`, `:Git blame`,
+        // `:VimwikiIndex`...), attach the owning plugin name and searchable
+        // aliases so the binding is discoverable by plugin name in search.
+        var attribution = commandAttribution(rhs)
+
         shortcuts.push({
             keys: normKeys,
             action: rhs,
-            actionToken: firstToken
+            actionToken: firstToken,
+            pluginName: attribution ? attribution.pluginName : null,
+            aliases: attribution ? attribution.aliases : null
         })
     }
 
@@ -498,6 +506,119 @@ function pluginNameFromPlug(plugAction) {
     var colon = plugAction.indexOf(":")
     if (colon > 0) return plugAction.substring(0, colon).toLowerCase()
     return null
+}
+
+// Curated dictionary of vim Ex commands shipped by the major plugins, mapping
+// each command name (case-sensitive — plugin commands conventionally start
+// with an uppercase letter) to its owning plugin and a list of searchable
+// aliases. When the user has a binding like `nnoremap <leader>f :Files<CR>`,
+// we use this dict to attribute the binding to the fzf plugin and make it
+// findable via search for "fzf", "fuzzy", "ripgrep", etc.
+//
+// Keep this list focused on the *most common* plugins. The widget is
+// open-source — community contributions can grow it; this isn't meant to
+// be exhaustive.
+var KNOWN_COMMANDS = {
+    // fzf / fzf.vim
+    "Files":        { plugin: "fzf",      aliases: ["fzf", "fuzzy", "find"] },
+    "GFiles":       { plugin: "fzf",      aliases: ["fzf", "git"] },
+    "Buffers":      { plugin: "fzf",      aliases: ["fzf"] },
+    "Lines":        { plugin: "fzf",      aliases: ["fzf"] },
+    "BLines":       { plugin: "fzf",      aliases: ["fzf"] },
+    "Marks":        { plugin: "fzf",      aliases: ["fzf"] },
+    "History":      { plugin: "fzf",      aliases: ["fzf"] },
+    "Helptags":     { plugin: "fzf",      aliases: ["fzf", "help"] },
+    "Commands":     { plugin: "fzf",      aliases: ["fzf"] },
+    "Snippets":     { plugin: "fzf",      aliases: ["fzf"] },
+    "Commits":      { plugin: "fzf",      aliases: ["fzf", "git"] },
+    "BCommits":     { plugin: "fzf",      aliases: ["fzf", "git"] },
+    "Colors":       { plugin: "fzf",      aliases: ["fzf"] },
+    "Filetypes":    { plugin: "fzf",      aliases: ["fzf"] },
+    "Tags":         { plugin: "fzf",      aliases: ["fzf"] },
+    "BTags":        { plugin: "fzf",      aliases: ["fzf"] },
+    "Ag":           { plugin: "fzf",      aliases: ["fzf", "grep"] },
+    "Rg":           { plugin: "fzf",      aliases: ["fzf", "grep", "ripgrep"] },
+    "Locate":       { plugin: "fzf",      aliases: ["fzf"] },
+
+    // vim-fugitive (and the leading-G alias spectrum)
+    "G":            { plugin: "fugitive", aliases: ["git"] },
+    "Git":          { plugin: "fugitive", aliases: ["git"] },
+    "Gstatus":      { plugin: "fugitive", aliases: ["git"] },
+    "Gblame":       { plugin: "fugitive", aliases: ["git", "blame"] },
+    "Gdiff":        { plugin: "fugitive", aliases: ["git", "diff"] },
+    "Gdiffsplit":   { plugin: "fugitive", aliases: ["git", "diff"] },
+    "Gvdiffsplit":  { plugin: "fugitive", aliases: ["git", "diff"] },
+    "Glog":         { plugin: "fugitive", aliases: ["git", "log"] },
+    "Gcommit":      { plugin: "fugitive", aliases: ["git", "commit"] },
+    "Gwrite":       { plugin: "fugitive", aliases: ["git", "stage"] },
+    "Gread":        { plugin: "fugitive", aliases: ["git"] },
+
+    // gitgutter
+    "GitGutter":              { plugin: "gitgutter", aliases: ["git", "hunk"] },
+    "GitGutterPreviewHunk":   { plugin: "gitgutter", aliases: ["git", "hunk"] },
+    "GitGutterStageHunk":     { plugin: "gitgutter", aliases: ["git", "hunk", "stage"] },
+    "GitGutterUndoHunk":      { plugin: "gitgutter", aliases: ["git", "hunk"] },
+    "GitGutterNextHunk":      { plugin: "gitgutter", aliases: ["git", "hunk"] },
+    "GitGutterPrevHunk":      { plugin: "gitgutter", aliases: ["git", "hunk"] },
+
+    // nerdtree
+    "NERDTree":         { plugin: "nerdtree", aliases: ["tree", "file-explorer", "sidebar"] },
+    "NERDTreeToggle":   { plugin: "nerdtree", aliases: ["tree", "file-explorer", "sidebar"] },
+    "NERDTreeFocus":    { plugin: "nerdtree", aliases: ["tree"] },
+    "NERDTreeFind":     { plugin: "nerdtree", aliases: ["tree"] },
+    "NERDTreeCWD":      { plugin: "nerdtree", aliases: ["tree"] },
+
+    // vimwiki
+    "VimwikiIndex":               { plugin: "vimwiki", aliases: ["wiki", "notes"] },
+    "VimwikiTabIndex":            { plugin: "vimwiki", aliases: ["wiki", "notes"] },
+    "VimwikiUISelect":            { plugin: "vimwiki", aliases: ["wiki"] },
+    "VimwikiDiaryIndex":          { plugin: "vimwiki", aliases: ["wiki", "diary", "notes"] },
+    "VimwikiDiaryGenerateLinks":  { plugin: "vimwiki", aliases: ["wiki", "diary"] },
+    "VimwikiMakeDiaryNote":       { plugin: "vimwiki", aliases: ["wiki", "diary", "notes"] },
+    "VimwikiTabMakeDiaryNote":    { plugin: "vimwiki", aliases: ["wiki", "diary"] },
+    "VimwikiMakeYesterdayDiaryNote": { plugin: "vimwiki", aliases: ["wiki", "diary"] },
+    "VimwikiMakeTomorrowDiaryNote":  { plugin: "vimwiki", aliases: ["wiki", "diary"] },
+    "VimwikiBacklinks":           { plugin: "vimwiki", aliases: ["wiki", "links"] },
+    "VimwikiTOC":                 { plugin: "vimwiki", aliases: ["wiki"] },
+    "VimwikiSearch":              { plugin: "vimwiki", aliases: ["wiki", "search"] },
+    "VimwikiSearchTags":          { plugin: "vimwiki", aliases: ["wiki", "tags"] },
+    "VimwikiGoto":                { plugin: "vimwiki", aliases: ["wiki", "jump"] },
+    "VimwikiTable":               { plugin: "vimwiki", aliases: ["wiki", "table"] },
+    "VimwikiSplitLink":           { plugin: "vimwiki", aliases: ["wiki", "links"] },
+    "VimwikiVSplitLink":          { plugin: "vimwiki", aliases: ["wiki", "links"] },
+    "VimwikiGoBackLink":          { plugin: "vimwiki", aliases: ["wiki", "links"] },
+
+    // CoC
+    "CocList":          { plugin: "coc", aliases: ["lsp"] },
+    "CocCommand":       { plugin: "coc", aliases: ["lsp"] },
+    "CocAction":        { plugin: "coc", aliases: ["lsp"] },
+    "CocActionAsync":   { plugin: "coc", aliases: ["lsp"] },
+    "CocRestart":       { plugin: "coc", aliases: ["lsp"] },
+    "CocInfo":          { plugin: "coc", aliases: ["lsp"] },
+    "CocConfig":        { plugin: "coc", aliases: ["lsp"] },
+
+    // vim-commentary
+    "Commentary":   { plugin: "commentary", aliases: ["comment"] },
+
+    // goyo / limelight
+    "Goyo":            { plugin: "goyo",      aliases: ["focus", "zen"] },
+    "Limelight":       { plugin: "limelight", aliases: ["focus", "dim"] },
+    "LimelightToggle": { plugin: "limelight", aliases: ["focus", "dim"] },
+
+    // table-mode
+    "TableModeToggle": { plugin: "table-mode", aliases: ["table"] },
+    "Tableize":        { plugin: "table-mode", aliases: ["table"] }
+}
+
+// Inspect the RHS of a user mapping and return { pluginName, aliases } if it
+// invokes a known Ex command. Returns null otherwise. The first ":Command"
+// token is what we look up — `<leader>g :Rg<CR>` resolves to fzf via "Rg".
+function commandAttribution(rhs) {
+    if (!rhs) return null
+    var match = String(rhs).match(/:([A-Z]\w*)/)
+    if (!match) return null
+    var entry = KNOWN_COMMANDS[match[1]]
+    return entry ? { pluginName: entry.plugin, aliases: entry.aliases } : null
 }
 
 // Strip `<silent>`, `<buffer>`, `<expr>`, `<unique>`, `<nowait>`, `<special>`
