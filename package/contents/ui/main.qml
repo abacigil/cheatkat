@@ -85,8 +85,16 @@ PlasmoidItem {
 
     // --- File reading ---
     // Qt 6 blocks XHR from reading file:// URLs, so we shell out via
-    // Plasma's executable engine. One DataSource is enough — we route
-    // responses by tool id encoded into the source string.
+    // Plasma's executable engine. Each tool probes its config paths in
+    // order and stops on the first one with non-empty stdout — so
+    // "first existing wins" actually means first existing, not "last
+    // async response wins".
+    //
+    // `probeByTool[toolId] = { paths, index }` holds per-tool sequential
+    // state. Starting a new reload overwrites the entry, so older in-flight
+    // probes whose response races in late see no state and exit silently.
+    property var probeByTool: ({})
+
     P5Support.DataSource {
         id: catSource
         engine: "executable"
@@ -94,16 +102,38 @@ PlasmoidItem {
 
         onNewData: function (sourceName, data) {
             disconnectSource(sourceName)
-            var stdout = (data["stdout"] || "").toString()
-            // sourceName looks like:  "cat -- '/path' # tool=kitty"
             var match = sourceName.match(/#\s*tool=(\S+)/)
-            if (match) handleToolText(match[1], stdout)
+            if (!match) return
+            var toolId = match[1]
+            var state  = root.probeByTool[toolId]
+            if (!state) return   // stale probe from a superseded reload
+
+            var stdout = (data["stdout"] || "").toString()
+            if (stdout.length > 0) {
+                root.handleToolText(toolId, stdout)
+                delete root.probeByTool[toolId]
+                return
+            }
+            // Empty stdout = missing/unreadable/empty file. Try the next
+            // candidate path; if none remain, defaults stay seeded.
+            state.index++
+            root.advanceProbe(toolId)
         }
 
         function load(toolId, path) {
             var safe = "'" + String(path).replace(/'/g, "'\\''") + "'"
             connectSource("cat -- " + safe + " # tool=" + toolId)
         }
+    }
+
+    function advanceProbe(toolId) {
+        var state = probeByTool[toolId]
+        if (!state) return
+        if (state.index >= state.paths.length) {
+            delete probeByTool[toolId]
+            return
+        }
+        catSource.load(toolId, expand(state.paths[state.index]))
     }
 
     // --- Helpers ---
@@ -162,16 +192,17 @@ PlasmoidItem {
 
     function reloadTool(tool) {
         if (!tool || !tool.module) return  // skip synthetic tools ("all")
-        // Always seed with defaults so the tab isn't empty while cat runs.
+        // Always seed with defaults so the tab isn't empty while the
+        // sequential probe runs.
         setToolGroups(tool.id, buildDefaultGroups(tool))
         if (!parseUserConf) return
         var paths = tool.configPaths()
         if (!paths || paths.length === 0) return
-        // Try each candidate path; the executable engine returns empty stdout
-        // for a missing file, and we keep the defaults in that case.
-        for (var i = 0; i < paths.length; i++) {
-            catSource.load(tool.id, expand(paths[i]))
-        }
+        // Reset per-tool probe state and start probing the first candidate.
+        // Any in-flight probe from a previous reload is implicitly cancelled
+        // by overwriting probeByTool[tool.id].
+        probeByTool[tool.id] = { paths: paths, index: 0 }
+        advanceProbe(tool.id)
     }
 
     function reloadAll() {
