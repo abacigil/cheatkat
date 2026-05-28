@@ -30,6 +30,11 @@ PlasmoidItem {
     property Theme theme: Theme { flavor: root.flavor }
 
     // --- Tool registry ---
+    //
+    // Each tool's `configPaths` function reads the live Plasmoid config.
+    // We fall back to the tool module's own defaults whenever the persisted
+    // value is empty — this self-heals from situations where a broken
+    // settings dialog saved an empty StringList back over the defaults.
     readonly property var tools: [
         {
             id: "all",
@@ -43,14 +48,19 @@ PlasmoidItem {
             displayName: Kitty.displayName,
             prompt: Kitty.prompt,
             module: Kitty,
-            configPaths: function () { return [kittyConfPath] }
+            configPaths: function () {
+                return kittyConfPath ? [kittyConfPath] : Kitty.configPaths
+            }
         },
         {
             id: Vim.id,
             displayName: Vim.displayName,
             prompt: Vim.prompt,
             module: Vim,
-            configPaths: function () { return splitPaths(vimConfPaths) }
+            configPaths: function () {
+                var fromCfg = splitPaths(vimConfPaths)
+                return fromCfg.length > 0 ? fromCfg : Vim.configPaths
+            }
         }
     ]
 
@@ -333,7 +343,16 @@ PlasmoidItem {
         // vim-only: scan plugin directories if enabled. Plugin results are
         // merged on top of whatever the user/default merge produces.
         if (tool.id === "vim" && vimScanPlugins) {
-            var dirs = splitPaths(vimPluginDirs).map(expand)
+            // Same self-healing fallback as the config-path probe: a broken
+            // settings save can persist an empty list; fall back to the
+            // canonical defaults so the scan still runs.
+            var dirsCfg = splitPaths(vimPluginDirs)
+            if (dirsCfg.length === 0) {
+                dirsCfg = ["~/.vim/plugged", "~/.vim/pack",
+                           "~/.local/share/nvim/site/pack",
+                           "~/.local/share/nvim/lazy"]
+            }
+            var dirs = dirsCfg.map(expand)
             if (dirs.length > 0) {
                 catSource.runPluginVim(tool.id, dirs)
                 catSource.runPluginLua(tool.id, dirs)

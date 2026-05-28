@@ -1,8 +1,17 @@
 # cheatkat
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Plasma 6](https://img.shields.io/badge/Plasma-6.x-1d99f3.svg?logo=kde&logoColor=white)](https://kde.org/plasma-desktop/)
+[![Qt 6](https://img.shields.io/badge/Qt-6-41cd52.svg?logo=qt&logoColor=white)](https://www.qt.io/)
+[![QML](https://img.shields.io/badge/built_with-QML%20%2F%20JavaScript-1d99f3.svg)](https://doc.qt.io/qt-6/qmlapplications.html)
+[![Catppuccin](https://img.shields.io/badge/theme-Catppuccin-f5c2e7.svg)](https://github.com/catppuccin/catppuccin)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 A KDE Plasma 6 widget that shows your terminal-tool shortcuts as a tabbed, terminal-styled cheatsheet on your desktop.
 
 It ships with the bundled defaults for each tool and merges in your own keybindings from the matching config file — so the widget always reflects what your tools actually do.
+
+![cheatkat on the desktop](screenshots/desktop.png)
 
 ## Supported tools
 
@@ -27,13 +36,15 @@ User and default keys always win — a plugin entry with a key you've already bo
 
 ## Features
 
-- Terminal-window aesthetic — title bar, traffic-light controls, tab strip, blinking prompt cursor
 - Catppuccin palette (Mocha / Macchiato / Frappé / Latte)
 - Tabs at the top to switch between tools, with kitty's powerline tab styling
 - Reads each tool's user config and overlays custom keybindings on top of bundled defaults
-- `[user]` tag on entries that came from your config so you can spot them at a glance
-- Live search/filter across keys, actions, and categories
-- Collapsible category sections, smooth expand/collapse animations
+- Source labels on each entry — `user` (green) for your config, plugin name (orange) for plugin-defined defaults
+- **Synonym-aware search** — type `cop` to find vim's `yank`, `save` to find vim's `:w`, `exit` to find `:q` and kitty's `close tab`
+
+  <img src="screenshots/synonym-search.png" alt="search for 'cop' surfaces vim's yank line" width="420">
+
+- Collapsible category sections with smooth expand/collapse animations
 - Hover highlights and per-keycap rendering
 
 ## Requirements

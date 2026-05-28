@@ -122,29 +122,21 @@ Item {
             renderType: Text.NativeRendering
         }
 
-        // Source tag — distinguishes user-defined and plugin-scanned entries
-        // from the bundled defaults. Color encodes the source (green = your
-        // config, orange = plugin scan). The chip text prefers the actual
-        // plugin name when we have it (e.g. "surround", "coc"), and falls
-        // back to a generic "user" / "plug" otherwise.
-        Rectangle {
+        // Source label — color-only, no border. Less visually heavy than a
+        // chip, but still tells you whether a binding came from your config
+        // (green) or a plugin scan (orange), and which plugin when known.
+        Text {
             visible: row.source === "user" || row.source === "plugin"
-            color: "transparent"
-            border.color: row.source === "plugin" ? theme.peach : theme.green
-            border.width: 1
-            radius: 4
-            Layout.preferredHeight: sourceTag.implicitHeight + 4
-            Layout.preferredWidth: sourceTag.implicitWidth + 10
-            Text {
-                id: sourceTag
-                anchors.centerIn: parent
-                text: row.pluginName
-                    ? row.pluginName
-                    : (row.source === "plugin" ? "plug" : "user")
-                font.family: row.fontFamily
-                font.pixelSize: row.fontSize - 2
-                color: row.source === "plugin" ? theme.peach : theme.green
-            }
+            text: row.pluginName
+                ? row.pluginName
+                : (row.source === "plugin" ? "plug" : "user")
+            color: row.source === "plugin" ? theme.peach : theme.green
+            opacity: 0.85
+            font.family: row.fontFamily
+            font.pixelSize: row.fontSize - 2
+            font.italic: true
+            verticalAlignment: Text.AlignVCenter
+            Layout.alignment: Qt.AlignVCenter
         }
     }
 }

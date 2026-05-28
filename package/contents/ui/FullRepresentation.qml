@@ -4,7 +4,7 @@ import QtQuick.Controls as Controls
 import org.kde.plasma.plasmoid 2.0
 import "../code/shortcuts.js" as Shortcuts
 
-// Terminal-styled cheatsheet view, hosting a tab strip per tool.
+// Cheatsheet view, hosting a tab strip per tool.
 //
 // Data flows down via properties; clicks on the tab strip bubble up through
 // activeToolIdRequested(id) so the parent owns config persistence.
@@ -13,16 +13,14 @@ Item {
 
     property var theme: null
     property int gridUnit: 18
-    property var tools: []           // [{id, displayName, prompt, module, ...}]
-    property var groupsByTool: ({})  // toolId -> [{name, items}, ...]
+    property var tools: []
+    property var groupsByTool: ({})
     property string activeToolId: ""
 
     signal activeToolIdRequested(string id)
 
-    readonly property string fontFamily:   Plasmoid.configuration.fontFamily
-    readonly property int    fontSize:     Plasmoid.configuration.fontSize
-    readonly property bool   blinkCursor:  Plasmoid.configuration.blinkCursor
-    readonly property bool   showTitleBar: Plasmoid.configuration.showTitleBar
+    readonly property string fontFamily: Plasmoid.configuration.fontFamily
+    readonly property int    fontSize:   Plasmoid.configuration.fontSize
 
     readonly property var activeTool: {
         for (var i = 0; i < tools.length; i++) {
@@ -37,9 +35,6 @@ Item {
         return groupsByTool[activeTool.id] || []
     }
 
-    // Aggregate every real tool's groups into one flat list, prefixing each
-    // category name with the source tool so kitty's "windows" doesn't
-    // collide visually with vim's "windows".
     function buildAllGroups() {
         var out = []
         for (var i = 0; i < tools.length; i++) {
@@ -57,12 +52,11 @@ Item {
     }
 
     property string searchQuery: ""
-    property bool   searchVisible: false
 
     implicitWidth:  gridUnit * 24
     implicitHeight: gridUnit * 28
 
-    // --- Window background ---
+    // --- Background ---
     Rectangle {
         id: window
         anchors.fill: parent
@@ -70,91 +64,12 @@ Item {
         color: theme.base
         border.color: theme.surface1
         border.width: 1
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: 1
-            radius: 9
-            color: "transparent"
-            border.color: Qt.rgba(1, 1, 1, 0.03)
-            border.width: 1
-        }
     }
 
-    // --- Title bar ---
-    Item {
-        id: titleBar
-        visible: full.showTitleBar
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: visible ? 30 : 0
-
-        Rectangle {
-            anchors.fill: parent
-            color: theme.crust
-            radius: 10
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: parent.height / 2
-                color: parent.color
-            }
-        }
-
-        Row {
-            anchors.left: parent.left
-            anchors.leftMargin: 10
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 7
-            Repeater {
-                model: [theme.red, theme.yellow, theme.green]
-                Rectangle { width: 12; height: 12; radius: 6; color: modelData }
-            }
-        }
-
-        Text {
-            anchors.centerIn: parent
-            text: "~/cheatkat"
-            color: theme.subtext
-            font.family: full.fontFamily
-            font.pixelSize: full.fontSize - 1
-            renderType: Text.NativeRendering
-        }
-
-        Controls.AbstractButton {
-            id: searchButton
-            anchors.right: parent.right
-            anchors.rightMargin: 10
-            anchors.verticalCenter: parent.verticalCenter
-            width: 22; height: 22
-            hoverEnabled: true
-            onClicked: {
-                full.searchVisible = !full.searchVisible
-                if (full.searchVisible) searchField.forceActiveFocus()
-                else full.searchQuery = ""
-            }
-            background: Rectangle {
-                anchors.fill: parent
-                radius: 4
-                color: searchButton.hovered ? theme.surface0 : "transparent"
-            }
-            contentItem: Text {
-                anchors.centerIn: parent
-                text: full.searchVisible ? "×" : "⌕"
-                color: theme.subtext
-                font.family: full.fontFamily
-                font.pixelSize: full.fontSize + 2
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-        }
-    }
-
-    // --- Tab strip ---
+    // --- Tab strip (now the top of the widget; no title bar above) ---
     TabStrip {
         id: tabStrip
-        anchors.top: titleBar.bottom
+        anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         theme:      full.theme
@@ -165,36 +80,43 @@ Item {
         onTabSelected: function (id) { full.activeToolIdRequested(id) }
     }
 
-    // --- Search bar ---
+    // --- Search bar (always visible — no toggle to discover) ---
     Item {
         id: searchBar
         anchors.top: tabStrip.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        clip: true
-        height: full.searchVisible ? 36 : 0
-        Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.InOutQuad } }
+        height: 32
 
         Rectangle { anchors.fill: parent; color: theme.mantle }
 
-        Row {
+        // Bottom hairline so the search bar visually anchors to the body
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            color: theme.surface0
+        }
+
+        RowLayout {
             anchors.fill: parent
-            anchors.margins: 6
+            anchors.leftMargin: 10
+            anchors.rightMargin: 8
             spacing: 6
+
             Text {
                 text: "/"
-                anchors.verticalCenter: parent.verticalCenter
                 color: theme.peach
                 font.family: full.fontFamily
                 font.pixelSize: full.fontSize
                 font.bold: true
             }
+
             Controls.TextField {
                 id: searchField
-                width: parent.width - 30
-                anchors.verticalCenter: parent.verticalCenter
-                placeholderText: "filter " + (full.activeTool ? full.activeTool.displayName : "")
-                                 + " shortcuts"
+                Layout.fillWidth: true
+                placeholderText: "filter " + (full.activeTool ? full.activeTool.displayName : "") + " shortcuts"
                 color: theme.text
                 placeholderTextColor: theme.overlay
                 font.family: full.fontFamily
@@ -202,6 +124,29 @@ Item {
                 onTextChanged: full.searchQuery = text
                 background: Rectangle { color: "transparent" }
                 selectByMouse: true
+            }
+
+            // Clear-search affordance — only shown when there's something to clear
+            Controls.AbstractButton {
+                visible: full.searchQuery.length > 0
+                width: 22
+                height: 22
+                hoverEnabled: true
+                onClicked: { searchField.text = "" }
+                background: Rectangle {
+                    anchors.fill: parent
+                    radius: 4
+                    color: parent.hovered ? theme.surface0 : "transparent"
+                }
+                contentItem: Text {
+                    anchors.centerIn: parent
+                    text: "×"
+                    color: theme.overlay
+                    font.family: full.fontFamily
+                    font.pixelSize: full.fontSize + 2
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
         }
     }
@@ -228,7 +173,7 @@ Item {
             width: scrollArea.width
             spacing: 4
 
-            // Per-tool opening prompt
+            // Opening prompt — sets context for what the list represents.
             Row {
                 spacing: 6
                 Text {
@@ -272,33 +217,6 @@ Item {
                 font.family: full.fontFamily
                 font.pixelSize: full.fontSize
                 font.italic: true
-            }
-
-            Item { width: 1; height: 4 }
-
-            // Trailing prompt with blinking cursor
-            Row {
-                spacing: 4
-                Text {
-                    text: "$"
-                    color: theme.green
-                    font.family: full.fontFamily
-                    font.pixelSize: full.fontSize
-                    font.bold: true
-                }
-                Rectangle {
-                    id: cursor
-                    width: full.fontSize * 0.55
-                    height: full.fontSize + 2
-                    color: theme.pink
-                    anchors.verticalCenter: parent.verticalCenter
-                    SequentialAnimation on opacity {
-                        running: full.blinkCursor
-                        loops: Animation.Infinite
-                        NumberAnimation { to: 0; duration: 500 }
-                        NumberAnimation { to: 1; duration: 500 }
-                    }
-                }
             }
 
             Item { width: 1; height: 8 }

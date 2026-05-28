@@ -37,8 +37,8 @@
       <default>~/.config/kitty/kitty.conf</default>
     </entry>
 
-    <entry name="vimConfPaths" type="StringList">
-      <label>Paths to vim/neovim configs (first existing wins)</label>
+    <entry name="vimConfPaths" type="String">
+      <label>Paths to vim/neovim configs (first existing wins, comma-separated)</label>
       <default>~/.vimrc,~/.config/nvim/init.vim</default>
     </entry>
 
@@ -47,19 +47,10 @@
       <default>false</default>
     </entry>
 
-    <entry name="vimPluginDirs" type="StringList">
-      <label>Plugin install roots (vim-plug, vim-pack, nvim pack, lazy.nvim)</label>
+    <entry name="vimPluginDirs" type="String">
+      <label>Plugin install roots (vim-plug, vim-pack, nvim pack, lazy.nvim; comma-separated)</label>
       <default>~/.vim/plugged,~/.vim/pack,~/.local/share/nvim/site/pack,~/.local/share/nvim/lazy</default>
     </entry>
 
-    <entry name="showTitleBar" type="Bool">
-      <label>Show terminal title bar with traffic lights</label>
-      <default>true</default>
-    </entry>
-
-    <entry name="blinkCursor" type="Bool">
-      <label>Blink the trailing prompt cursor</label>
-      <default>true</default>
-    </entry>
   </group>
 </kcfg>
