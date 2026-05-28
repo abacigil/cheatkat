@@ -1,0 +1,154 @@
+# cheatkat
+
+A KDE Plasma 6 widget that shows your terminal-tool shortcuts as a tabbed, terminal-styled cheatsheet on your desktop.
+
+It ships with the bundled defaults for each tool and merges in your own keybindings from the matching config file — so the widget always reflects what your tools actually do.
+
+## Supported tools
+
+| Tool | Defaults | Config source                                  |
+| ---- | -------- | ---------------------------------------------- |
+| kitty | ✓        | `~/.config/kitty/kitty.conf`                  |
+| vim / neovim | ✓        | `~/.vimrc`, `~/.config/nvim/init.vim` |
+
+Adding a new tool means dropping in another module under `package/contents/code/` and registering it in `main.qml`'s `tools:` array — see the [contributing notes](#adding-a-new-tool).
+
+> **Note:** neovim's `init.lua` is **not** parsed. Reliably extracting keymaps from arbitrary Lua is a project of its own; for now, only vimscript-style configs are read. Lua heredocs inside `init.vim` are skipped over.
+
+## Features
+
+- Terminal-window aesthetic — title bar, traffic-light controls, tab strip, blinking prompt cursor
+- Catppuccin palette (Mocha / Macchiato / Frappé / Latte)
+- Tabs at the top to switch between tools, with kitty's powerline tab styling
+- Reads each tool's user config and overlays custom keybindings on top of bundled defaults
+- `[user]` tag on entries that came from your config so you can spot them at a glance
+- Live search/filter across keys, actions, and categories
+- Collapsible category sections, smooth expand/collapse animations
+- Hover highlights and per-keycap rendering
+
+## Requirements
+
+- KDE Plasma **6.x** (uses `kpackagetool6`)
+- Qt 6
+- A monospace font installed — JetBrains Mono is recommended
+
+Verified on Plasma 6.6.
+
+## Install
+
+```bash
+git clone https://github.com/abacigil/cheatkat.git
+cd cheatkat
+./install.sh
+```
+
+Then right-click your desktop → **Add Widgets…** → search for **cheatkat**.
+
+To upgrade after pulling new changes, run `./install.sh` again — it detects existing installs (including the legacy `org.kde.plasma.kitty-shortcuts` id) and replaces them cleanly.
+
+If the widget doesn't seem to pick up new code, restart plasmashell so its QML cache is dropped:
+
+```bash
+pkill -9 plasmashell ; sleep 1 ; kstart plasmashell &
+```
+
+## Uninstall
+
+```bash
+./uninstall.sh
+```
+
+## Configuration
+
+Right-click the widget → **Configure cheatkat…**:
+
+| Option              | What it does                                                                                   |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| Theme               | Pick a Catppuccin flavor                                                                       |
+| Font family / size  | Monospace font and base pixel size                                                             |
+| Parse user configs  | Toggle merging of user keybindings on top of bundled defaults                                  |
+| kitty.conf path     | Override location of your kitty config                                                         |
+| vim configs         | Comma-separated list of candidate vim/neovim configs; first one that exists wins              |
+| Title bar           | Show/hide the traffic-light terminal title bar                                                 |
+| Cursor              | Toggle the blinking trailing prompt cursor                                                     |
+
+User-defined bindings show a small green `user` tag. If you reassign a default binding in your config, the original is dropped from the list (so a stale entry never lies to you).
+
+## How config parsing works
+
+### kitty.conf
+
+- `kitty_mod ctrl+shift` — the modifier prefix used by all default bindings
+- `map <keys> <action> [args]` — bindings, including `kitty_mod` substitution
+- `map <keys> no_op` — clears a binding (filtered out of the widget)
+- Backslash line continuations
+- Comments (`# ...`) and blank lines
+
+Modifier ordering is normalized (`shift+ctrl+t` and `ctrl+shift+t` match), and a handful of synonyms are aliased (`control` → `ctrl`, `cmd`/`super` → `meta`, `option` → `alt`).
+
+### vim / init.vim
+
+- `:map`, `:noremap`, and the per-mode variants (`:nmap`, `:nnoremap`, `:vmap`, `:vnoremap`, `:imap`, `:inoremap`, plus `xmap`, `omap`, `smap`, `tmap`, `cmap`)
+- Mapping args (`<silent>`, `<buffer>`, `<expr>`, `<unique>`, `<nowait>`, `<special>`, `<script>`) are stripped
+- Backslash line continuations
+- `<C-x>` → `ctrl+x`, `<S-x>` → `shift+x`, `<A-x>` / `<M-x>` → `alt+x`, `<CR>` → `enter`, `<Esc>` → `escape`, `<leader>` kept as-is
+- Uppercase ASCII letters (`G`, `Q`) are expanded to explicit `shift+g`, `shift+q` so they render distinctly from lowercase
+- `<Plug>...` and `<SID>...` RHSs are skipped (they aren't real keystrokes)
+- `<Nop>` and `:unmap` clear the corresponding default
+- Lua heredocs (`lua << EOF ... EOF`) are skipped
+
+## Project layout
+
+```
+package/
+├── metadata.json                    # Plasma package manifest
+└── contents/
+    ├── ui/
+    │   ├── main.qml                 # PlasmoidItem root + tool registry
+    │   ├── FullRepresentation.qml   # Terminal-styled cheatsheet view
+    │   ├── CompactRepresentation.qml
+    │   ├── TabStrip.qml             # Tool tabs
+    │   ├── CategorySection.qml      # Collapsible group
+    │   ├── ShortcutRow.qml          # One shortcut line
+    │   ├── KeyCap.qml               # Single styled key chip
+    │   ├── Theme.qml                # Catppuccin palette
+    │   └── configGeneral.qml        # Settings page
+    ├── config/
+    │   ├── main.xml                 # KConfig schema
+    │   └── config.qml               # Config category registration
+    ├── code/
+    │   ├── shortcuts.js             # Shared merge / group / filter helpers
+    │   ├── kitty.js                 # Tool module: kitty defaults + parser
+    │   └── vim.js                   # Tool module: vim defaults + parser
+    └── icons/
+        └── cheatkat.svg
+
+tests/                               # node-based parser + search tests
+├── run.js
+├── fixtures/
+│   ├── kitty.conf
+│   └── vimrc
+├── parser.test.js
+└── search.test.js
+```
+
+## Tests
+
+```bash
+node tests/run.js
+```
+
+Covers kitty + vim parser behavior, vim normalizer idempotence, and synonym-aware search across multi-tool data. Required to pass before merging PRs.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev loop, the testing harness, and the recipe for adding a new tool tab. Issue reports and PRs welcome — open an issue first for bigger changes.
+
+## Credits
+
+- [kitty](https://sw.kovidgoyal.net/kitty/) by Kovid Goyal
+- [Catppuccin](https://github.com/catppuccin/catppuccin) color palette
+
+## License
+
+MIT — see [LICENSE](LICENSE).

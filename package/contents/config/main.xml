@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+
+  <kcfgfile name=""/>
+
+  <group name="General">
+    <entry name="flavor" type="String">
+      <label>Catppuccin flavor</label>
+      <default>mocha</default>
+    </entry>
+
+    <entry name="fontFamily" type="String">
+      <label>Monospace font family</label>
+      <default>JetBrains Mono</default>
+    </entry>
+
+    <entry name="fontSize" type="Int">
+      <label>Base font size in pixels</label>
+      <default>12</default>
+    </entry>
+
+    <entry name="activeTool" type="String">
+      <label>Currently selected tool tab</label>
+      <default>all</default>
+    </entry>
+
+    <entry name="parseUserConf" type="Bool">
+      <label>Merge user overrides parsed from each tool's config file</label>
+      <default>true</default>
+    </entry>
+
+    <entry name="kittyConfPath" type="String">
+      <label>Path to kitty.conf</label>
+      <default>~/.config/kitty/kitty.conf</default>
+    </entry>
+
+    <entry name="vimConfPaths" type="StringList">
+      <label>Paths to vim/neovim configs (first existing wins)</label>
+      <default>~/.vimrc,~/.config/nvim/init.vim</default>
+    </entry>
+
+    <entry name="showTitleBar" type="Bool">
+      <label>Show terminal title bar with traffic lights</label>
+      <default>true</default>
+    </entry>
+
+    <entry name="blinkCursor" type="Bool">
+      <label>Blink the trailing prompt cursor</label>
+      <default>true</default>
+    </entry>
+  </group>
+</kcfg>

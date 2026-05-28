@@ -1,0 +1,31 @@
+" sample vimrc used by parser tests
+set number
+let mapleader = " "
+
+" basic mappings across modes
+nnoremap <leader>f :Files<CR>
+nmap <silent> <C-p> :FZF<CR>
+inoremap jj <Esc>
+vnoremap <C-c> "+y
+
+" plugin map — should be skipped
+nmap <leader>w <Plug>(easymotion-w)
+
+" disable defaults
+nnoremap <Space> <Nop>
+nunmap <leader>q
+
+" line continuation
+nnoremap <leader>x :echo
+  \ "hello world"<CR>
+
+" lua heredoc — entire block skipped
+lua << EOF
+  vim.keymap.set("n", "<C-h>", ":bp<CR>")
+EOF
+
+" multi-modifier chord
+nnoremap <C-S-Tab> :tabprev<CR>
+
+" uppercase ASCII letter LHS
+nnoremap Q :quit<CR>

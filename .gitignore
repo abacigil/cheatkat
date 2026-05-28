@@ -1,0 +1,7 @@
+*.kate-swp
+*.swp
+*.bak
+.DS_Store
+.idea/
+.vscode/
+build/

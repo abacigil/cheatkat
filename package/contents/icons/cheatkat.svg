@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- left ear -->
+  <path d="M11 22 L18 6 L26 24 Z" fill="#1e1e2e" stroke="#cba6f7" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M16 19 L19 11 L22 22 Z" fill="#f5c2e7"/>
+  <!-- right ear -->
+  <path d="M53 22 L46 6 L38 24 Z" fill="#1e1e2e" stroke="#cba6f7" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M48 19 L45 11 L42 22 Z" fill="#f5c2e7"/>
+
+  <!-- terminal body -->
+  <rect x="6" y="16" width="52" height="42" rx="8" ry="8"
+        fill="#1e1e2e" stroke="#cba6f7" stroke-width="1.8"/>
+
+  <!-- title bar accent (traffic lights) -->
+  <circle cx="13" cy="23" r="1.8" fill="#f38ba8"/>
+  <circle cx="19" cy="23" r="1.8" fill="#f9e2af"/>
+  <circle cx="25" cy="23" r="1.8" fill="#a6e3a1"/>
+
+  <!-- whiskers (subtle) -->
+  <line x1="2"  y1="36" x2="9"  y2="38" stroke="#cdd6f4" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="2"  y1="42" x2="9"  y2="42" stroke="#cdd6f4" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="62" y1="36" x2="55" y2="38" stroke="#cdd6f4" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="62" y1="42" x2="55" y2="42" stroke="#cdd6f4" stroke-width="0.8" stroke-linecap="round"/>
+
+  <!-- prompt -->
+  <text x="14" y="48" font-family="JetBrains Mono, monospace"
+        font-size="14" font-weight="700" fill="#a6e3a1">&gt;_</text>
+</svg>
