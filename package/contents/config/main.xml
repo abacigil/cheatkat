@@ -42,6 +42,16 @@
       <default>~/.vimrc,~/.config/nvim/init.vim</default>
     </entry>
 
+    <entry name="vimScanPlugins" type="Bool">
+      <label>Scan installed vim/neovim plugins for their keymaps</label>
+      <default>false</default>
+    </entry>
+
+    <entry name="vimPluginDirs" type="StringList">
+      <label>Plugin install roots (vim-plug, vim-pack, nvim pack, lazy.nvim)</label>
+      <default>~/.vim/plugged,~/.vim/pack,~/.local/share/nvim/site/pack,~/.local/share/nvim/lazy</default>
+    </entry>
+
     <entry name="showTitleBar" type="Bool">
       <label>Show terminal title bar with traffic lights</label>
       <default>true</default>

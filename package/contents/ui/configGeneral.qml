@@ -8,14 +8,16 @@ Kirigami.FormLayout {
 
     // These cfg_<name> properties are auto-bound by Plasma's config system
     // to the matching <entry> in main.xml.
-    property string cfg_flavor:        "mocha"
-    property alias  cfg_fontFamily:    fontFamilyField.text
-    property alias  cfg_fontSize:      fontSizeSpin.value
-    property alias  cfg_parseUserConf: parseUserConfBox.checked
-    property alias  cfg_kittyConfPath: kittyPathField.text
-    property string cfg_vimConfPaths:  "~/.vimrc,~/.config/nvim/init.vim"
-    property alias  cfg_showTitleBar:  titleBarBox.checked
-    property alias  cfg_blinkCursor:   blinkBox.checked
+    property string cfg_flavor:         "mocha"
+    property alias  cfg_fontFamily:     fontFamilyField.text
+    property alias  cfg_fontSize:       fontSizeSpin.value
+    property alias  cfg_parseUserConf:  parseUserConfBox.checked
+    property alias  cfg_kittyConfPath:  kittyPathField.text
+    property string cfg_vimConfPaths:   "~/.vimrc,~/.config/nvim/init.vim"
+    property alias  cfg_vimScanPlugins: pluginScanBox.checked
+    property string cfg_vimPluginDirs:  "~/.vim/plugged,~/.vim/pack,~/.local/share/nvim/site/pack,~/.local/share/nvim/lazy"
+    property alias  cfg_showTitleBar:   titleBarBox.checked
+    property alias  cfg_blinkCursor:    blinkBox.checked
 
     ComboBox {
         id: flavorBox
@@ -90,6 +92,40 @@ Kirigami.FormLayout {
         font.italic: true
         opacity: 0.7
         Layout.fillWidth: true
+    }
+
+    Item {
+        Kirigami.FormData.isSection: true
+        Kirigami.FormData.label: i18n("vim plugin keymaps")
+    }
+
+    CheckBox {
+        id: pluginScanBox
+        Kirigami.FormData.label: i18n("Scan plugins:")
+        text: i18n("Include keymaps from installed vim/neovim plugins")
+        enabled: parseUserConfBox.checked
+    }
+
+    TextField {
+        id: vimPluginDirsField
+        Kirigami.FormData.label: i18n("Plugin roots:")
+        text: form.cfg_vimPluginDirs
+        placeholderText: "~/.vim/plugged,~/.vim/pack,~/.local/share/nvim/site/pack,~/.local/share/nvim/lazy"
+        enabled: parseUserConfBox.checked && pluginScanBox.checked
+        Layout.fillWidth: true
+        Layout.minimumWidth: 320
+        onTextChanged: form.cfg_vimPluginDirs = text
+    }
+
+    Label {
+        text: i18n("Walks plugin/*.vim, after/plugin/*.vim, and *.lua files. " +
+                   "Lua coverage is best-effort (vim.keymap.set / nvim_set_keymap " +
+                   "patterns); lazy.nvim spec and which-key are not yet supported.")
+        font.italic: true
+        opacity: 0.7
+        wrapMode: Text.Wrap
+        Layout.fillWidth: true
+        Layout.maximumWidth: 380
     }
 
     Item {

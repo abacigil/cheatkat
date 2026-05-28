@@ -6,14 +6,24 @@ It ships with the bundled defaults for each tool and merges in your own keybindi
 
 ## Supported tools
 
-| Tool | Defaults | Config source                                  |
-| ---- | -------- | ---------------------------------------------- |
-| kitty | ✓        | `~/.config/kitty/kitty.conf`                  |
-| vim / neovim | ✓        | `~/.vimrc`, `~/.config/nvim/init.vim` |
+| Tool | Defaults | Config source                                  | Plugin scan |
+| ---- | -------- | ---------------------------------------------- | ----------- |
+| kitty | ✓        | `~/.config/kitty/kitty.conf`                  | —           |
+| vim / neovim | ✓        | `~/.vimrc`, `~/.config/nvim/init.vim` | opt-in      |
 
-Adding a new tool means dropping in another module under `package/contents/code/` and registering it in `main.qml`'s `tools:` array — see the [contributing notes](#adding-a-new-tool).
+Adding a new tool means dropping in another module under `package/contents/code/` and registering it in `main.qml`'s `tools:` array — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-> **Note:** neovim's `init.lua` is **not** parsed. Reliably extracting keymaps from arbitrary Lua is a project of its own; for now, only vimscript-style configs are read. Lua heredocs inside `init.vim` are skipped over.
+### vim plugin keymaps
+
+Three layers of vim keybindings are surfaced, each with its own source tag:
+
+1. **`<Plug>` mappings in your vimrc** (always on). Lines like `nmap gd <Plug>(coc-definition)` are kept — the LHS is what you actually press, and the action label is derived from the `<Plug>` name. These land in the `plugins` category with the `user` tag.
+2. **Plugin-defined defaults from `plugin/*.vim`** (toggle: *Scan plugins* in settings). Walks `~/.vim/plugged/`, `~/.vim/pack/*/start/`, `~/.local/share/nvim/site/pack/*/start/`, `~/.local/share/nvim/lazy/`. Pre-greps to `:map`-style lines before parsing. Tagged `plug` (orange).
+3. **Lua keymaps** (same toggle). Best-effort regex over `*.lua` for `vim.keymap.set(...)` and `vim.api.nvim_set_keymap(...)`. Picks up `desc = "..."` when present. Tagged `plug`.
+
+User and default keys always win — a plugin entry with a key you've already bound is dropped, so the list stays unambiguous.
+
+> **Lua limitations:** lazy.nvim's `keys = { ... }` spec, which-key's `wk.register(...)`, and keymap calls split across multiple lines are **not** parsed. These need a real Lua tokenizer; the regex approach catches the common single-line patterns and skips the rest cleanly. Lua heredocs inside `init.vim` are also skipped.
 
 ## Features
 

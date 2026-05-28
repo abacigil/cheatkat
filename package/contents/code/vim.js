@@ -13,7 +13,7 @@ var configPaths = ["~/.vimrc", "~/.config/nvim/init.vim"]
 
 var CATEGORY_ORDER = [
     "motion", "editing", "visual", "windows",
-    "buffers & tabs", "search & replace", "misc"
+    "buffers & tabs", "search & replace", "plugins", "misc"
 ]
 
 var DEFAULTS = [
@@ -254,6 +254,7 @@ function normalizeAngle(token) {
 function categorize(action) {
     if (!action) return "misc"
     var a = String(action).toLowerCase()
+    if (a === "plug")                           return "plugins"
     if (/^:?(w$|wq|sav|write)/.test(a))         return "misc"
     if (/^:?(q!?$|quit)/.test(a))               return "misc"
     if (/(buffer|tabnew|tabnext|tabprev|tabc|\bbn\b|\bbp\b|\bbd\b)/.test(a)) return "buffers & tabs"
@@ -285,10 +286,13 @@ function humanize(action) {
 // Mapping args like <silent>, <buffer>, <expr>, <unique>, <nowait>, <special>
 // are stripped from the lhs.
 //
+// <Plug> mappings are kept (the LHS is a real keypress) and routed to the
+// "plugins" category, with the plug name as the action label.
+//
 // Skipped:
-//   - lines whose RHS starts with <Plug>, <SID>, or contains uppercase-only
-//     function refs that don't translate to actual keys
-//   - Lua heredocs (`lua << EOF ... EOF`)
+//   - lines whose RHS starts with <SID>... (plumbing, not a keypress)
+//   - bare `<Nop>` RHS — recorded as a disabled key
+//   - lua heredocs (`lua << EOF ... EOF`)
 function parseConfig(text) {
     var shortcuts = []
     var disabledKeys = {}
@@ -353,9 +357,15 @@ function parseConfig(text) {
         if (!parsedArgs.lhs || !parsedArgs.rhs) return
 
         var rhs = parsedArgs.rhs.trim()
-        // Skip plugin / SID maps — they aren't real keypresses you'd want shown
-        if (/^<Plug>/i.test(rhs)) return
-        if (/^<SID>/.test(rhs))   return
+
+        // Skip LHS-side <Plug>/<SID> mappings — those are plugin-internal
+        // endpoint *definitions*, not keypresses anyone types. They show up
+        // when scanning plugin/*.vim files; the plugin uses them as named
+        // handles for users to bind their own keys to.
+        if (/^<plug>/i.test(parsedArgs.lhs)) return
+        if (/^<sid>/i.test(parsedArgs.lhs)) return
+
+        if (/^<SID>/.test(rhs)) return
         if (rhs === "<Nop>" || rhs === "<nop>") {
             disabledKeys[normalizeKeys(parsedArgs.lhs)] = true
             return
@@ -364,7 +374,20 @@ function parseConfig(text) {
         var normKeys = normalizeKeys(parsedArgs.lhs)
         if (!normKeys) return
 
-        // First "word" of the rhs is the action token used for categorization
+        // `<Plug>(coc-definition)` style mappings: the RHS is an abstract
+        // plugin endpoint, but the LHS *is* a real keypress the user types.
+        // Surface a humanized plug-name as the action and route to "plugins".
+        var plugMatch = rhs.match(/^<Plug>\(?([^)\s]+?)\)?\s*$/i)
+        if (plugMatch) {
+            shortcuts.push({
+                keys: normKeys,
+                action: plugMatch[1].trim(),
+                actionToken: "plug",
+                category: "plugins"
+            })
+            return
+        }
+
         var firstToken = rhs.split(/[\s<]/)[0]
         shortcuts.push({
             keys: normKeys,
@@ -374,6 +397,85 @@ function parseConfig(text) {
     }
 
     return { shortcuts: shortcuts, disabledKeys: disabledKeys }
+}
+
+// Best-effort regex-based Lua parser for neovim keymap calls.
+//
+// Recognized patterns (single-line only — we don't do real Lua tokenization):
+//   vim.keymap.set("n", "<C-p>", "...")
+//   vim.keymap.set("n", "<C-p>", "...", { desc = "..." })
+//   vim.keymap.set({"n", "v"}, "<C-p>", "...", ...)
+//   vim.api.nvim_set_keymap("n", "<C-p>", "...", {})
+//
+// Explicitly NOT recognized (would need real parsing):
+//   - lazy.nvim spec `keys = { { "key", "rhs" }, ... }`
+//   - which-key.nvim `wk.register({...})`
+//   - keymap calls split across multiple lines
+//   - bindings whose lhs/rhs are variables instead of literals
+//
+// Returns the same shape as parseConfig.
+function parseLuaConfig(text) {
+    var shortcuts = []
+    var disabledKeys = {}
+
+    var lines = String(text || "").split(/\r?\n/)
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i]
+        if (!line) continue
+
+        var stripped = line.replace(/^\s+/, "").replace(/--.*$/, "")
+        if (!stripped) continue
+
+        // Capture either signature into shared groups.
+        var m = stripped.match(
+            // vim.keymap.set( <mode-expr>, "<key>", <rhs>, [opts] )
+            /vim\.keymap\.set\s*\(\s*((?:"[^"]*"|'[^']*'|\{[^}]*\}))\s*,\s*("[^"]*"|'[^']*')\s*,\s*(.+?)(?:,\s*(\{[^}]*\}))?\s*\)/
+        )
+        if (!m) {
+            m = stripped.match(
+                // vim.api.nvim_set_keymap( "<mode>", "<key>", "<rhs>", [opts] )
+                /vim\.api\.nvim_set_keymap\s*\(\s*("[^"]*"|'[^']*')\s*,\s*("[^"]*"|'[^']*')\s*,\s*("[^"]*"|'[^']*')\s*,\s*(\{[^}]*\})\s*\)/
+            )
+        }
+        if (!m) continue
+
+        var keysLit = stripQuotes(m[2])
+        var rhsLit  = stripQuotes(m[3])
+        var opts    = m[4] || ""
+
+        if (!keysLit) continue
+
+        var normKeys = normalizeKeys(keysLit)
+        if (!normKeys) continue
+
+        // If RHS is a function/table call instead of a quoted string, label it
+        // explicitly so users know it's not directly inspectable.
+        if (m[3].charAt(0) !== '"' && m[3].charAt(0) !== "'") {
+            rhsLit = "<lua function>"
+        }
+
+        var descMatch = opts.match(/\bdesc\s*=\s*("[^"]*"|'[^']*')/)
+        var actionText = descMatch ? stripQuotes(descMatch[1]) : rhsLit
+
+        shortcuts.push({
+            keys: normKeys,
+            action: actionText,
+            actionToken: actionText.split(/[\s<]/)[0],
+            source: "user"
+        })
+    }
+
+    return { shortcuts: shortcuts, disabledKeys: disabledKeys }
+}
+
+function stripQuotes(s) {
+    if (!s) return ""
+    s = String(s)
+    var q = s.charAt(0)
+    if ((q === '"' || q === "'") && s.charAt(s.length - 1) === q) {
+        return s.substring(1, s.length - 1)
+    }
+    return s
 }
 
 // Strip `<silent>`, `<buffer>`, `<expr>`, `<unique>`, `<nowait>`, `<special>`

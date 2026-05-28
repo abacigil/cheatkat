@@ -70,9 +70,11 @@ describe("vim.parseConfig", ({ eq, truthy }) => {
     truthy(byKey["ctrl+shift+tab"], "<C-S-Tab> captured")
     truthy(byKey["shift+q"],      "bare uppercase LHS Q expanded to shift+q")
 
-    // <Plug> mappings must be skipped
-    truthy(!parsed.shortcuts.find(s => s.action.includes("<Plug>")),
-       "<Plug> RHS skipped")
+    // <Plug> RHS mappings are kept now (previously skipped). The LHS is a
+    // real keypress; the action is synthesized from the <Plug> name.
+    truthy(byKey["<leader> w"], "<Plug> map captured")
+    eq(byKey["<leader> w"].action,   "easymotion-w", "Plug name extracted")
+    eq(byKey["<leader> w"].category, "plugins",      "<Plug> routed to plugins category")
 
     // lua heredoc must NOT contribute a mapping
     truthy(!byKey["ctrl+h"],
@@ -96,4 +98,54 @@ describe("vim.categorize", ({ eq }) => {
     eq(Vim.categorize(":tabnew"),        "buffers & tabs", "tabnew -> buffers")
     eq(Vim.categorize(":split"),         "windows",   "split -> windows")
     eq(Vim.categorize(":%s/foo/bar/"),   "search & replace", "substitute -> search & replace")
+    eq(Vim.categorize("plug"),           "plugins",   "plug actionToken -> plugins")
+})
+
+describe("vim <Plug> mapping support", ({ eq, truthy }) => {
+    const sample = [
+        'nmap <silent> gd <Plug>(coc-definition)',
+        'nmap <leader>rn <Plug>(coc-rename)',
+        'nmap ds <Plug>Dsurround',
+        'nmap <leader>f <Plug>fugitive:'
+    ].join("\n")
+    const parsed = Vim.parseConfig(sample)
+    const byKey  = Object.fromEntries(parsed.shortcuts.map(s => [s.keys, s]))
+
+    eq(parsed.shortcuts.length, 4,
+       "all 4 <Plug> maps captured (previously all skipped)")
+    eq(byKey["g d"].action,         "coc-definition", "paren-wrapped Plug name extracted")
+    eq(byKey["g d"].category,       "plugins",        "routed to plugins category")
+    eq(byKey["<leader> r n"].action, "coc-rename")
+    eq(byKey["d s"].action,         "Dsurround",      "bare <Plug>Name (no parens) handled")
+    eq(byKey["<leader> f"].action,  "fugitive:",      "trailing colon preserved")
+
+    const sidParsed = Vim.parseConfig("nmap <leader>s <SID>foo")
+    eq(sidParsed.shortcuts.length, 0, "<SID> RHS still skipped")
+})
+
+describe("vim.parseLuaConfig", ({ eq, truthy }) => {
+    const sample = [
+        '-- comment',
+        'vim.keymap.set("n", "<leader>ff", "<cmd>Telescope find_files<cr>", { desc = "Find files" })',
+        'vim.keymap.set("n", "<C-s>", "<cmd>w<cr>")',
+        'vim.keymap.set({"n", "v"}, "<leader>y", \'"+y\', { desc = "yank to clipboard" })',
+        'vim.api.nvim_set_keymap("i", "jk", "<Esc>", { noremap = true })',
+        'vim.keymap.set("n", "<leader>fn", function() require("telescope").find() end, { desc = "find with picker" })',
+        'irrelevant.line()',
+        'vim.keymap.set("n", "<C-x>", "<cmd>Bar<cr>") -- inline lua comment'
+    ].join("\n")
+
+    const parsed = Vim.parseLuaConfig(sample)
+    const byKey  = Object.fromEntries(parsed.shortcuts.map(s => [s.keys, s]))
+
+    truthy(byKey["<leader> f f"], "single-string mode keymap.set captured")
+    eq(byKey["<leader> f f"].action, "Find files", "desc preferred over rhs")
+    truthy(byKey["ctrl+s"],          "rhs used when no desc")
+    eq(byKey["ctrl+s"].action,       "<cmd>w<cr>")
+    truthy(byKey["<leader> y"],      "multi-mode {n,v} keymap.set captured")
+    truthy(byKey["j k"],             "nvim_set_keymap captured")
+    truthy(byKey["<leader> f n"],    "function rhs captured")
+    eq(byKey["<leader> f n"].action, "<lua function>",
+       "function references labeled distinctly")
+    truthy(byKey["ctrl+x"],          "trailing comment doesn't break parse")
 })

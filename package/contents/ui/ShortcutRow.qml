@@ -121,21 +121,23 @@ Item {
             renderType: Text.NativeRendering
         }
 
+        // Source tag — distinguishes user-defined and plugin-scanned entries
+        // from the bundled defaults. Color and label are picked by source.
         Rectangle {
-            visible: row.source === "user"
+            visible: row.source === "user" || row.source === "plugin"
             color: "transparent"
-            border.color: theme.green
+            border.color: row.source === "plugin" ? theme.peach : theme.green
             border.width: 1
             radius: 4
-            Layout.preferredHeight: userTag.implicitHeight + 4
-            Layout.preferredWidth: userTag.implicitWidth + 10
+            Layout.preferredHeight: sourceTag.implicitHeight + 4
+            Layout.preferredWidth: sourceTag.implicitWidth + 10
             Text {
-                id: userTag
+                id: sourceTag
                 anchors.centerIn: parent
-                text: "user"
+                text: row.source === "plugin" ? "plug" : "user"
                 font.family: row.fontFamily
                 font.pixelSize: row.fontSize - 2
-                color: theme.green
+                color: row.source === "plugin" ? theme.peach : theme.green
             }
         }
     }

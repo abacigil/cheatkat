@@ -39,11 +39,14 @@ function mergeWithDefaults(defaults, parsedUser, normalizeFn, categorize, humani
     for (var u = 0; u < userShortcuts.length; u++) {
         var s = userShortcuts[u]
         merged.push({
-            category: categorize(s.actionToken || s.action),
+            // Parser can pre-assign a category (e.g. <Plug> -> "plugins");
+            // otherwise sniff from the action text.
+            category: s.category || categorize(s.actionToken || s.action),
             keys: s.keys,
             action: humanize(s.action),
             aliases: s.aliases || null,
-            source: "user"
+            // Parsers (vimrc / plugin scanner / Lua) can also pre-assign source.
+            source: s.source || "user"
         })
     }
 
